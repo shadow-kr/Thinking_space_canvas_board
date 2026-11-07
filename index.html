@@ -115,6 +115,7 @@ input[type=range]{accent-color:var(--pink);cursor:pointer}
   <label class="tgl" id="remL" title="Remember path: Save and Load reuse the last file without asking"><input type="checkbox" id="rem" aria-label="Remember path" data-i="disc"></label>
   <span class="sep"></span>
   <button class="btn" id="clear" data-i="trash">Empty canvas</button>
+  <button class="btn" id="shot" data-i="camera" title="Save the whole board as a PNG image">Screenshot</button>
 </div>
 
 <div id="tools" class="bar">
@@ -171,6 +172,7 @@ const I={
  eyeoff:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/>',
  map:'<path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z"/><path d="M8 3v15M16 6v15"/>',
  upload:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+ camera:'<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/>',
  grip:'<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>'
 };
 document.querySelectorAll('[data-i]').forEach(e=>e.insertAdjacentHTML(e.tagName==='INPUT'?'afterend':'afterbegin',ic(I[e.dataset.i])));
@@ -428,6 +430,69 @@ $('#pick').onchange=e=>{if(pickTarget)[...e.target.files].forEach(f=>readImg(f,p
 $('#clear').onclick=async()=>{
   if(await ask('Empty the canvas? This deletes every note, arrow and drawing. Save first if you want a copy.','Empty canvas')){S.notes=[];S.conns=[];S.strokes=[];renderAll();persist();toast('Canvas emptied')}
 };
+
+/* screenshot: renders every visible note, arrow and drawing to a PNG */
+const loadImg=src=>new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
+function wrapText(x,t,maxW){const out=[];t.split('\n').forEach(par=>{let line='';par.split(' ').forEach(wd=>{const test=line?line+' '+wd:wd;if(x.measureText(test).width>maxW&&line){out.push(line);line=wd}else line=test});out.push(line)});return out}
+async function shot(){
+  const ids=new Set(S.layers.filter(l=>!l.hidden).map(l=>l.id));
+  const notes=S.notes.filter(n=>ids.has(n.l)),strokes=S.strokes.filter(s=>ids.has(s.l));
+  if(!notes.length&&!strokes.length)return toast('Nothing to capture');
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  const add=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)};
+  notes.forEach(n=>{add(n.x,n.y);add(n.x+n.w,n.y+n.h)});strokes.forEach(s=>s.pts.forEach(q=>add(q[0],q[1])));
+  const pad=48;x0-=pad;y0-=pad;x1+=pad;y1+=pad;
+  const w=x1-x0,h=y1-y0,sc=Math.min(2,6000/Math.max(w,h));
+  const cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);
+  const x=cv.getContext('2d');x.scale(sc,sc);x.translate(-x0,-y0);
+  x.fillStyle='#373b3e';x.fillRect(x0,y0,w,h);
+  if((w/26)*(h/26)<60000){x.fillStyle='rgba(190,200,209,.17)';for(let gx=Math.ceil((x0-13)/26)*26+13;gx<x1;gx+=26)for(let gy=Math.ceil((y0-13)/26)*26+13;gy<y1;gy+=26){x.beginPath();x.arc(gx,gy,1.3,0,7);x.fill()}}
+  let skipped=0;const pics={};
+  for(const n of notes)pics[n.id]=await Promise.all(n.imgs.map(async i=>{const p=await loadImg(i.src);if(!p)skipped++;return p}));
+  // arrows
+  x.lineWidth=2.5;x.strokeStyle='#86cecb';x.fillStyle='#86cecb';
+  S.conns.forEach(c=>{
+    const na=NN(c.a),nb=NN(c.b);if(!na||!nb||!ids.has(na.l)||!ids.has(nb.l))return;
+    const a=anchor(c.a,c.as),b=anchor(c.b,c.bs);
+    x.stroke(new Path2D(curve(a,c.as,b,c.bs)));
+    const dir=c.bs==='r'?-1:1;x.beginPath();x.moveTo(b.x,b.y);x.lineTo(b.x-dir*18,b.y-9);x.lineTo(b.x-dir*18,b.y+9);x.closePath();x.fill();
+  });
+  const SANS='"Segoe UI",system-ui,sans-serif';
+  S.layers.filter(l=>!l.hidden).forEach(l=>{
+    notes.filter(n=>n.l===l.id).forEach(n=>{
+      const el=LE[n.l].querySelector(`.note[data-id="${n.id}"]`);if(!el)return;
+      const card=el.firstChild,fg=getComputedStyle(card).color;
+      x.save();x.translate(n.x,n.y);
+      if(!n.bare){x.shadowColor='rgba(0,0,0,.32)';x.shadowBlur=22;x.shadowOffsetY=8;x.fillStyle=n.color;x.beginPath();x.roundRect(0,0,n.w,n.h,14);x.fill();x.shadowColor='transparent'}
+      x.beginPath();x.roundRect(0,0,n.w,n.h,14);x.clip();x.translate(-card.scrollLeft,-card.scrollTop);
+      const ti=el.querySelector('.ti'),ta=el.querySelector('textarea');
+      if(ti.offsetWidth){
+        x.save();x.fillStyle='rgba(255,255,255,.22)';x.beginPath();x.roundRect(ti.offsetLeft,ti.offsetTop,ti.offsetWidth,ti.offsetHeight,8);x.fill();x.clip();
+        x.fillStyle=fg;x.font='700 15px '+SANS;x.textBaseline='middle';x.fillText(ti.value,ti.offsetLeft+8,ti.offsetTop+ti.offsetHeight/2);x.restore();
+      }
+      el.querySelectorAll('.im').forEach((m,i)=>{
+        const p=pics[n.id][i];if(!p)return;
+        const sc2=Math.min(m.offsetWidth/p.width,m.offsetHeight/p.height),dw=p.width*sc2,dh=p.height*sc2;
+        x.save();x.beginPath();x.roundRect(m.offsetLeft,m.offsetTop,m.offsetWidth,m.offsetHeight,8);x.clip();
+        x.drawImage(p,m.offsetLeft+(m.offsetWidth-dw)/2,m.offsetTop+(m.offsetHeight-dh)/2,dw,dh);x.restore();
+      });
+      if(ta.offsetWidth){
+        x.save();x.beginPath();x.roundRect(ta.offsetLeft,ta.offsetTop,ta.offsetWidth,ta.offsetHeight,8);
+        if(!n.bare){x.fillStyle='rgba(255,255,255,.18)';x.fill()}x.clip();
+        x.fillStyle=fg;x.font='14px '+SANS;x.textBaseline='middle';
+        wrapText(x,ta.value,ta.offsetWidth-16).forEach((t,i)=>x.fillText(t,ta.offsetLeft+8,ta.offsetTop+8+20.3*i+10));x.restore();
+      }
+      x.restore();
+    });
+    x.lineCap='round';x.lineJoin='round';
+    strokes.filter(s=>s.l===l.id).forEach(s=>{x.strokeStyle=s.c;x.lineWidth=s.w||3;x.stroke(new Path2D(pathD(s.pts)))});
+  });
+  try{
+    cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='board.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      toast(skipped?`Screenshot saved (${skipped} linked image${skipped>1?'s':''} skipped: blocked by their site)`:'Screenshot saved')},'image/png');
+  }catch{toast('Could not create the screenshot')}
+}
+$('#shot').onclick=shot;
 
 /* save / load */
 const rem=$('#rem');
