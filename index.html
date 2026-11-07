@@ -6,43 +6,96 @@
 <title>Canvas Board</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e12885' d='M16 2a9 9 0 0 0-5 16.5V22h10v-3.5A9 9 0 0 0 16 2z'/%3E%3Crect x='11' y='23.5' width='10' height='2.5' rx='1' fill='%23e12885'/%3E%3Crect x='13' y='27' width='6' height='2.5' rx='1.2' fill='%23e12885'/%3E%3C/svg%3E">
 <style>
-:root{--ink:#373b3e;--deep:#2b2f32;--mist:#bec8d1;--aqua:#86cecb;--teal:#137a7f;--pink:#e12885}
+:root{--ink:#373b3e;--deep:#2b2f32;--raise:#42474b;--mist:#bec8d1;--aqua:#86cecb;--teal:#137a7f;--pink:#e12885}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color:var(--mist)}
+button,input{font-family:inherit}
 #board{position:fixed;inset:0;overflow:auto}
-#world{position:relative;width:5000px;height:4000px;background-image:radial-gradient(rgba(190,200,209,.17) 1.3px,transparent 1.3px);background-size:26px 26px}
+#sizer{position:relative;width:5000px;height:4000px}
+#world{position:absolute;left:0;top:0;width:5000px;height:4000px;transform-origin:0 0;background-image:radial-gradient(rgba(190,200,209,.17) 1.3px,transparent 1.3px);background-size:26px 26px}
 #wires{position:absolute;inset:0;width:5000px;height:4000px;pointer-events:none;z-index:0}
 #wires .hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
 #wires .line{fill:none;stroke:var(--aqua);stroke-width:2.5;pointer-events:none}
 #wires .w:hover .line{stroke:var(--pink)}
 #wires .tmp{fill:none;stroke:var(--pink);stroke-width:2.5;stroke-dasharray:6 5}
-#bar{position:fixed;top:14px;left:14px;z-index:10000;display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--deep);border:1px solid rgba(190,200,209,.2);border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
-#bar button{font:600 13px inherit;font-family:inherit;color:#fff;background:var(--teal);border:0;border-radius:9px;padding:7px 14px;cursor:pointer}
-#bar button:hover{background:#19959b}
-#bar label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none}
-#bar input{accent-color:var(--pink);width:15px;height:15px}
-#add{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);width:60px;height:60px;border-radius:50%;border:0;background:var(--pink);color:#fff;font-size:34px;line-height:1;cursor:pointer;z-index:10000;box-shadow:0 8px 24px rgba(225,40,133,.45);transition:transform .15s}
-#add:hover{transform:translateX(-50%) scale(1.08)}
-#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--deep);color:var(--aqua);padding:8px 16px;border-radius:10px;font-size:13px;z-index:10001;opacity:0;pointer-events:none;transition:opacity .25s}
+.layer{position:absolute;inset:0;pointer-events:none}
+.ink{position:absolute;inset:0;width:5000px;height:4000px;z-index:99999;pointer-events:none}
+.ink path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* chrome */
+.bar{position:fixed;top:14px;z-index:10000;display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(43,47,50,.92);backdrop-filter:blur(8px);border:1px solid rgba(190,200,209,.18);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#bar{left:14px}#tools{right:14px}
+.sep{width:1px;height:22px;background:rgba(190,200,209,.22);margin:0 2px}
+.btn,.tgl{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 13px;font:600 13px/1 "Segoe UI",system-ui,sans-serif;color:var(--c,#e8eef2);background:var(--b,var(--raise));border:0;border-radius:10px;cursor:pointer;user-select:none;transition:filter .15s,box-shadow .15s}
+.btn:hover,.tgl:hover{filter:brightness(1.12)}
+.btn.ic,.tgl{padding:0;width:34px}
+.btn.on,.tgl:has(input:checked){background:var(--teal);color:#fff;box-shadow:0 0 0 2px var(--aqua)}
+.btn:disabled{opacity:.35;cursor:not-allowed;filter:none}
+.tgl input{position:absolute;opacity:0;pointer-events:none}
+button:focus-visible,.tgl:focus-within{outline:2px solid var(--aqua);outline-offset:2px}
+@keyframes pulse{35%{background:#86cecb;color:#0d2b2e}70%{background:#38ffe2;color:#0d2b2e}}
+.pulse{animation:pulse .7s ease}
+#pc{width:30px;height:30px;padding:0;border:2px solid var(--mist);border-radius:50%;background:none;cursor:pointer}
+input[type=range]{accent-color:var(--pink);cursor:pointer}
+#esz,#psz{width:84px}
+#add{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);width:60px;height:60px;border-radius:50%;border:0;background:var(--pink);color:#fff;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10000;box-shadow:0 8px 24px rgba(225,40,133,.45)}
+#add:hover{filter:brightness(1.1)}
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--deep);color:var(--aqua);padding:8px 16px;border-radius:10px;font-size:13px;z-index:10002;opacity:0;pointer-events:none;transition:opacity .25s}
 #toast.on{opacity:1}
 #empty{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;font-size:18px;opacity:.55}
-.note{position:absolute;z-index:1}
+#ovl{position:fixed;inset:0;z-index:9000;display:none;cursor:crosshair;touch-action:none}
+#ring{position:fixed;z-index:9001;display:none;pointer-events:none;border:2px solid var(--aqua);border-radius:50%;transform:translate(-50%,-50%);background:rgba(134,206,203,.12)}
+
+/* minimap + zoom */
+#nav{position:fixed;right:24px;bottom:24px;z-index:10000;width:222px;padding:10px;background:rgba(43,47,50,.92);backdrop-filter:blur(8px);border:1px solid rgba(190,200,209,.18);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:transform .25s,opacity .25s}
+#nav.hide{transform:translateX(130%);opacity:0;pointer-events:none}
+#mm{display:block;width:200px;height:160px;border-radius:8px;cursor:pointer;touch-action:none}
+#zoom{display:flex;align-items:center;gap:8px;margin-top:8px}
+#zoom input{flex:1;min-width:0}
+#zl{font-size:12px;width:34px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* layers */
+#side{position:fixed;top:78px;right:24px;width:260px;z-index:10000;padding:12px;background:rgba(43,47,50,.94);backdrop-filter:blur(8px);border:1px solid rgba(190,200,209,.18);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:transform .25s,opacity .25s}
+#side.hide{transform:translateX(120%);opacity:0;pointer-events:none}
+.sh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sh b{font-size:14px;color:#fff}.sh span{font-size:12px;flex:1}
+.sh .btn{height:30px;padding:0 10px}
+#llist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.lr{display:flex;align-items:center;gap:4px;padding:5px;background:var(--raise);border-radius:10px;border-left:3px solid transparent}
+.lr.act{border-left-color:var(--pink);background:#4a5055}
+.lr .grip{cursor:grab;padding:0 2px;opacity:.7;display:flex}
+.lr input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font:600 13px "Segoe UI",system-ui,sans-serif;padding:5px 4px;border-radius:6px}
+.lr input:focus{background:rgba(0,0,0,.25)}
+.lr button{width:28px;height:28px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--mist);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lr button:hover{background:rgba(255,255,255,.1)}
+.lr button.rm:hover{background:var(--pink);color:#fff}
+.lr button:disabled{opacity:.3;cursor:not-allowed}
+.hint{font-size:11px;opacity:.6;margin:8px 2px 0}
+
+/* modal */
+#modal{position:fixed;inset:0;z-index:20000;display:none;align-items:center;justify-content:center;background:rgba(20,22,24,.62);backdrop-filter:blur(3px)}
+#modal.on{display:flex}
+.dlg{width:340px;padding:22px;background:var(--deep);border:1px solid rgba(190,200,209,.2);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.dlg p{margin:0 0 18px;font-size:15px;line-height:1.5;color:#e8eef2}
+.dlg div{display:flex;justify-content:flex-end;gap:8px}
+
+/* notes */
+.note{position:absolute;pointer-events:auto}
 .card{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,.32);resize:both;overflow:auto;min-width:190px;min-height:110px;cursor:grab}
 .hd{display:flex;align-items:center;gap:4px}
-.hd input.ti{flex:1;min-width:0;font:700 15px inherit;font-family:inherit;color:inherit;background:rgba(255,255,255,.22);border:0;border-radius:8px;padding:6px 8px;outline:none}
+.hd input.ti{flex:1;min-width:0;font:700 15px "Segoe UI",system-ui,sans-serif;color:inherit;background:rgba(255,255,255,.22);border:0;border-radius:8px;padding:6px 8px;outline:none}
 .hd input.ti::placeholder{color:inherit;opacity:.55}
 .hd input.col{width:26px;height:26px;padding:0;border:2px solid rgba(255,255,255,.6);border-radius:50%;background:none;cursor:pointer;flex:none}
 .hd button{width:26px;height:26px;flex:none;border:0;border-radius:8px;background:rgba(0,0,0,.14);color:inherit;cursor:pointer;font-size:13px;padding:0}
 .hd button:hover{background:rgba(0,0,0,.3)}
 .hd button.del:hover{background:var(--pink);color:#fff}
-.card textarea{flex:1;min-height:56px;resize:none;border:0;outline:none;background:rgba(255,255,255,.18);border-radius:8px;padding:8px;font:14px/1.45 inherit;font-family:inherit;color:inherit}
+.card textarea{flex:1;min-height:56px;resize:none;border:0;outline:none;background:rgba(255,255,255,.18);border-radius:8px;padding:8px;font:14px/1.45 "Segoe UI",system-ui,sans-serif;color:inherit}
 .card textarea::placeholder{color:inherit;opacity:.5}
 .imgs{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .im{position:relative;resize:both;overflow:hidden;max-width:100%;min-width:40px;min-height:30px;border-radius:8px}
 .im img{display:block;width:100%;height:100%;object-fit:contain;-webkit-user-drag:none}
 .im b{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(55,59,62,.85);color:#fff;font-size:11px;display:none;align-items:center;justify-content:center;cursor:pointer}
-.im:hover b{display:flex}
-.im b:hover{background:var(--pink)}
+.im:hover b{display:flex}.im b:hover{background:var(--pink)}
 .h{position:absolute;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;background:var(--deep);border:2.5px solid var(--aqua);cursor:crosshair;z-index:2;transition:transform .12s}
 .h:hover{background:var(--pink);border-color:#fff;transform:scale(1.3)}
 .h.l{left:-9px}.h.r{right:-9px}
@@ -52,56 +105,242 @@ html,body{margin:0;height:100%;background:var(--ink);font-family:"Segoe UI",syst
 .note.bare:hover .hd{opacity:1}
 .note.bare .card textarea{background:transparent}
 .note.bare.hasimg textarea{display:none}
-.note.bare .im{resize:both}
 .note.bare .h{opacity:0}.note.bare:hover .h{opacity:1}
 </style>
 </head>
 <body>
-<div id="bar">
-  <button id="save">Save</button>
-  <button id="load">Load</button>
-  <label title="Reuse the chosen file without asking again"><input type="checkbox" id="rem">Remember path</label>
+<div id="bar" class="bar">
+  <button class="btn" id="save" style="--b:#fe2753;--c:#fff">Save</button>
+  <button class="btn" id="load" style="--b:#ffe125;--c:#2a2500">Load</button>
+  <label class="tgl" id="remL" title="Remember path: Save and Load reuse the last file without asking"><input type="checkbox" id="rem" aria-label="Remember path" data-i="disc"></label>
+  <span class="sep"></span>
+  <button class="btn" id="clear" data-i="trash">Empty canvas</button>
 </div>
-<div id="board"><div id="world">
+
+<div id="tools" class="bar">
+  <button class="btn ic" id="pen" data-i="pen" title="Pen"></button>
+  <input type="color" id="pc" value="#e12885" title="Pen color">
+  <input type="range" id="psz" min="1" max="24" value="3" title="Pen size">
+  <span class="sep"></span>
+  <button class="btn ic" id="era" data-i="eraser" title="Eraser"></button>
+  <input type="range" id="esz" min="4" max="80" value="20" title="Eraser size">
+  <button class="btn" id="eall" data-i="trash" title="Erase every drawing">Erase all</button>
+  <span class="sep"></span>
+  <button class="btn ic on" id="tmap" data-i="map" title="Show / hide map"></button>
+  <button class="btn ic on" id="tlay" data-i="layers" title="Show / hide layers"></button>
+</div>
+
+<div id="board"><div id="sizer"><div id="world">
   <svg id="wires" xmlns="http://www.w3.org/2000/svg"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0L10,5L0,10z" fill="#86cecb"/></marker></defs></svg>
-</div></div>
+</div></div></div>
+
+<aside id="side">
+  <div class="sh"><b>Layers</b><span id="lcnt"></span><button class="btn" id="ladd" data-i="plus">Add</button></div>
+  <ul id="llist"></ul>
+</aside>
+
+<div id="nav">
+  <canvas id="mm" width="200" height="160" title="Click or drag to move around"></canvas>
+  <div id="zoom"><span data-i="search" style="display:flex"></span><input type="range" id="zr" min="20" max="200" step="5" value="100" title="Zoom"><span id="zl">100%</span></div>
+</div>
+
 <div id="empty">Press + to add your first note</div>
-<button id="add" title="Add sticky note">+</button>
+<button id="add" title="Add sticky note" aria-label="Add sticky note"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 <div id="toast"></div>
+<div id="ovl"></div><div id="ring"></div>
+<div id="modal"><div class="dlg"><p id="mtxt"></p><div><button class="btn" id="mno">Cancel</button><button class="btn" id="myes" style="--b:#e12885;--c:#fff">Confirm</button></div></div></div>
 <input type="file" id="pick" accept="image/*" multiple hidden>
 <input type="file" id="open" accept=".json,application/json" hidden>
 
 <script>
 const $=s=>document.querySelector(s), NS='http://www.w3.org/2000/svg';
-const board=$('#board'), world=$('#world'), svg=$('#wires');
-let S={notes:[],conns:[]}, z=1, pickTarget=null;
+const board=$('#board'),sizer=$('#sizer'),world=$('#world'),svg=$('#wires'),ovl=$('#ovl'),ring=$('#ring');
 const uid=()=>Math.random().toString(36).slice(2,9);
 const COLORS=['#86cecb','#bec8d1','#f3a6c8','#a9ddd9'];
 const isDark=c=>{const n=parseInt(c.slice(1),16);return .299*(n>>16)+.587*(n>>8&255)+.114*(n&255)<140};
+const ic=p=>`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={
+ disc:'<path d="M5 3h11l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3"/><rect x="7" y="13" width="10" height="8" rx="1"/>',
+ pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+ eraser:'<path d="M20 20H9l-5.5-5.5a2 2 0 0 1 0-2.8L12 3.2a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L12 20"/><path d="M7.5 8.5l8 8"/>',
+ trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+ layers:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ eye:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
+ eyeoff:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/>',
+ map:'<path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z"/><path d="M8 3v15M16 6v15"/>',
+ upload:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+ grip:'<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>'
+};
+document.querySelectorAll('[data-i]').forEach(e=>e.insertAdjacentHTML(e.tagName==='INPUT'?'afterend':'afterbegin',ic(I[e.dataset.i])));
 
-/* ---------- storage (IndexedDB, survives closing the tab) ---------- */
+/* state */
+function norm(d){
+  const L=Array.isArray(d.layers)&&d.layers.length?d.layers:[{id:uid(),name:'Layer 1',hidden:false}];
+  const ids=new Set(L.map(l=>l.id));
+  return{layers:L,active:ids.has(d.active)?d.active:L[L.length-1].id,zoom:d.zoom||1,
+    notes:(d.notes||[]).map(n=>({...n,imgs:n.imgs||[],l:ids.has(n.l)?n.l:L[0].id})),conns:d.conns||[],strokes:(d.strokes||[]).filter(s=>ids.has(s.l))};
+}
+let S=norm({}),z=1,pickTarget=null,LE={};const SE=new Map();
+
+/* storage */
 const idb=new Promise((res,rej)=>{try{const q=indexedDB.open('canvas-board',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>res(q.result);q.onerror=rej}catch(e){rej(e)}});
 const kv=(m,k,v)=>idb.then(d=>new Promise((res,rej)=>{const s=d.transaction('kv',m==='get'?'readonly':'readwrite').objectStore('kv');const q=m==='get'?s.get(k):s.put(v,k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
-let timer;const persist=()=>{clearTimeout(timer);timer=setTimeout(()=>kv('put','state',S).catch(()=>{}),250)};
+let timer;const persist=()=>{mm();clearTimeout(timer);timer=setTimeout(()=>kv('put','state',S).catch(()=>{}),250)};
 let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)};
-const empty=()=>$('#empty').style.display=S.notes.length?'none':'flex';
+const empty=()=>$('#empty').style.display=S.notes.length||S.strokes.length?'none':'flex';
+const W=e=>{const r=world.getBoundingClientRect();return{x:(e.clientX-r.left)/S.zoom,y:(e.clientY-r.top)/S.zoom}};
 
-/* ---------- wires ---------- */
-const anchor=(id,s)=>{const n=S.notes.find(x=>x.id===id);return n&&{x:n.x+(s==='r'?n.w:0),y:n.y+n.h/2}};
+/* button highlight: #86cecb then #38ffe2 */
+document.addEventListener('click',e=>{const b=e.target.closest('button,.tgl');if(!b)return;b.classList.remove('pulse');void b.offsetWidth;b.classList.add('pulse')});
+document.addEventListener('animationend',e=>e.target.classList.remove('pulse'));
+
+/* confirm dialog */
+function ask(msg,ok='Confirm'){
+  return new Promise(r=>{
+    $('#mtxt').textContent=msg;$('#myes').textContent=ok;$('#modal').classList.add('on');
+    const done=v=>{$('#modal').classList.remove('on');$('#myes').onclick=$('#mno').onclick=null;document.onkeydown=null;r(v)};
+    $('#myes').onclick=()=>done(true);$('#mno').onclick=()=>done(false);
+    document.onkeydown=e=>{if(e.key==='Escape')done(false)};
+  });
+}
+
+/* zoom + minimap */
+function setZoom(v){
+  v=Math.min(2,Math.max(.2,v));const cw=board.clientWidth,ch=board.clientHeight;
+  const cx=(board.scrollLeft+cw/2)/S.zoom,cy=(board.scrollTop+ch/2)/S.zoom;
+  S.zoom=v;sizer.style.width=5000*v+'px';sizer.style.height=4000*v+'px';world.style.transform=`scale(${v})`;
+  board.scrollLeft=cx*v-cw/2;board.scrollTop=cy*v-ch/2;
+  $('#zr').value=Math.round(v*100);$('#zl').textContent=Math.round(v*100)+'%';persist();
+}
+$('#zr').oninput=e=>setZoom(e.target.value/100);
+board.addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();setZoom(S.zoom*(e.deltaY<0?1.1:1/1.1))}},{passive:false});
+let mmq=0;const mm=()=>{if(!mmq)mmq=requestAnimationFrame(()=>{mmq=0;drawMM()})};
+function drawMM(){
+  const c=$('#mm'),x=c.getContext('2d'),k=c.width/5000;
+  x.fillStyle='#373b3e';x.fillRect(0,0,c.width,c.height);
+  S.layers.forEach(l=>{
+    if(l.hidden)return;
+    S.notes.filter(n=>n.l===l.id).forEach(n=>{x.fillStyle=n.bare?'rgba(190,200,209,.5)':n.color;x.fillRect(n.x*k,n.y*k,Math.max(3,n.w*k),Math.max(3,n.h*k))});
+    x.lineWidth=1.2;
+    S.strokes.filter(s=>s.l===l.id).forEach(s=>{x.strokeStyle=s.c;x.beginPath();s.pts.forEach((q,i)=>i?x.lineTo(q[0]*k,q[1]*k):x.moveTo(q[0]*k,q[1]*k));x.stroke()});
+  });
+  x.strokeStyle='#e12885';x.lineWidth=1.5;x.fillStyle='rgba(225,40,133,.1)';
+  const vx=board.scrollLeft/S.zoom*k,vy=board.scrollTop/S.zoom*k,vw=board.clientWidth/S.zoom*k,vh=board.clientHeight/S.zoom*k;
+  x.fillRect(vx,vy,vw,vh);x.strokeRect(vx,vy,vw,vh);
+}
+board.addEventListener('scroll',mm);addEventListener('resize',mm);
+$('#mm').onpointerdown=e=>{
+  const c=e.target;c.setPointerCapture(e.pointerId);
+  const go=e=>{const r=c.getBoundingClientRect();board.scrollLeft=(e.clientX-r.left)/r.width*5000*S.zoom-board.clientWidth/2;board.scrollTop=(e.clientY-r.top)/r.height*4000*S.zoom-board.clientHeight/2};
+  go(e);c.onpointermove=go;c.onpointerup=()=>{c.onpointermove=null};
+};
+
+/* wires */
+const NN=id=>S.notes.find(x=>x.id===id);
+const hiddenL=id=>S.layers.find(l=>l.id===id)?.hidden;
+const anchor=(id,s)=>{const n=NN(id);return n&&{x:n.x+(s==='r'?n.w:0),y:n.y+n.h/2}};
 const curve=(a,as,b,bs)=>{const d=Math.max(60,Math.abs(b.x-a.x)/2),ax=a.x+(as==='r'?d:-d),bx=b.x+(bs==='r'?d:-d);return `M${a.x},${a.y}C${ax},${a.y} ${bx},${b.y} ${b.x},${b.y}`};
 function drawWires(){
   svg.querySelectorAll('.w').forEach(e=>e.remove());
   S.conns.forEach(c=>{
-    const a=anchor(c.a,c.as),b=anchor(c.b,c.bs);if(!a||!b)return;
-    const d=curve(a,c.as,b,c.bs),g=document.createElementNS(NS,'g');
+    const na=NN(c.a),nb=NN(c.b);if(!na||!nb||hiddenL(na.l)||hiddenL(nb.l))return;
+    const d=curve(anchor(c.a,c.as),c.as,anchor(c.b,c.bs),c.bs),g=document.createElementNS(NS,'g');
     g.setAttribute('class','w');
     g.innerHTML=`<path class="hit" d="${d}"/><path class="line" d="${d}" marker-end="url(#ah)"/>`;
     g.addEventListener('dblclick',()=>{S.conns=S.conns.filter(x=>x!==c);drawWires();persist();toast('Arrow deleted')});
     svg.append(g);
   });
+  mm();
 }
 
-/* ---------- notes ---------- */
+/* drawing */
+const pathD=P=>{const L=P[P.length-1];let d=`M${P[0][0]} ${P[0][1]}`;if(P.length<3)return d+`L${L[0]} ${L[1]}`;for(let i=1;i<P.length-1;i++)d+=`Q${P[i][0]} ${P[i][1]} ${(P[i][0]+P[i+1][0])/2} ${(P[i][1]+P[i+1][1])/2}`;return d+`L${L[0]} ${L[1]}`};
+function drawStroke(s){const p=document.createElementNS(NS,'path');p.setAttribute('d',pathD(s.pts));p.setAttribute('stroke',s.c);p.setAttribute('stroke-width',s.w||3);LE[s.l].querySelector('.ink').append(p);SE.set(s,p);return p}
+function eraseAt(p,r){
+  const out=[];let ch=false;
+  S.strokes.forEach(s=>{
+    if(s.l!==S.active||!s.pts.some(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<r)){out.push(s);return}
+    ch=true;SE.get(s)?.remove();SE.delete(s);
+    let cur=[];const flush=()=>{if(cur.length>1){const n={l:s.l,c:s.c,w:s.w,pts:cur};out.push(n);drawStroke(n)}cur=[]};
+    s.pts.forEach(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<r?flush():cur.push(q));flush();
+  });
+  if(ch){S.strokes=out;mm()}
+}
+let mode=null,drawing=false,cur=null,curPath=null,last=null;
+const color=()=>$('#pc').value,esz=()=>+$('#esz').value;
+function setMode(m){
+  mode=mode===m?null:m;ovl.style.display=mode?'block':'none';
+  $('#pen').classList.toggle('on',mode==='pen');$('#era').classList.toggle('on',mode==='erase');
+  ring.style.display='none';
+}
+$('#pen').onclick=()=>setMode('pen');$('#era').onclick=()=>setMode('erase');
+$('#pc').oninput=()=>{if(mode!=='pen')setMode('pen')};
+ovl.onpointerdown=e=>{
+  const l=S.layers.find(x=>x.id===S.active);if(l.hidden){toast('Show this layer first');return}
+  ovl.setPointerCapture(e.pointerId);last=W(e);drawing=true;
+  if(mode==='pen'){cur={l:S.active,c:color(),w:+$('#psz').value,pts:[[+last.x.toFixed(1),+last.y.toFixed(1)],[+last.x.toFixed(1),+last.y.toFixed(1)]]};S.strokes.push(cur);curPath=drawStroke(cur);empty()}
+  else eraseAt(last,esz()/2);
+};
+ovl.onpointermove=e=>{
+  if(mode==='erase'){const s=esz()*S.zoom;ring.style.cssText=`display:block;width:${s}px;height:${s}px;left:${e.clientX}px;top:${e.clientY}px`}
+  if(!drawing)return;
+  const p=W(e),dist=Math.hypot(p.x-last.x,p.y-last.y),n=Math.max(1,Math.ceil(dist/(mode==='pen'?3:Math.max(2,esz()/4))));
+  for(let i=1;i<=n;i++){const q={x:last.x+(p.x-last.x)*i/n,y:last.y+(p.y-last.y)*i/n};if(mode==='pen')cur.pts.push([+q.x.toFixed(1),+q.y.toFixed(1)]);else eraseAt(q,esz()/2)}
+  if(mode==='pen')curPath.setAttribute('d',pathD(cur.pts));
+  last=p;mm();
+};
+ovl.onpointerup=()=>{if(drawing){drawing=false;persist();empty()}};
+ovl.onpointerleave=()=>{ring.style.display='none'};
+ovl.onwheel=e=>{e.preventDefault();e.ctrlKey?setZoom(S.zoom*(e.deltaY<0?1.1:1/1.1)):board.scrollBy(e.deltaX,e.deltaY)};
+$('#eall').onclick=async()=>{
+  if(!S.strokes.length)return toast('Nothing to erase');
+  if(await ask('Erase every drawing on all layers? Your notes stay.','Erase all')){S.strokes=[];SE.clear();document.querySelectorAll('.ink').forEach(s=>s.innerHTML='');persist();empty()}
+};
+
+/* layers */
+function addLayerDom(l){const d=document.createElement('div');d.className='layer';d.innerHTML='<svg class="ink" xmlns="http://www.w3.org/2000/svg"></svg>';world.append(d);LE[l.id]=d}
+function applyLayers(){S.layers.forEach((l,i)=>{LE[l.id].style.zIndex=i+1;LE[l.id].style.display=l.hidden?'none':''});drawWires()}
+function setActive(id){S.active=id;document.querySelectorAll('.lr').forEach(li=>li.classList.toggle('act',li.dataset.id===id));persist()}
+function renderPanel(){
+  const ul=$('#llist');ul.innerHTML='';
+  [...S.layers].reverse().forEach(l=>{
+    const li=document.createElement('li');li.className='lr'+(l.id===S.active?' act':'');li.dataset.id=l.id;
+    li.innerHTML=`<span class="grip" title="Drag to reorder">${ic(I.grip)}</span><input maxlength="24" aria-label="Layer name"><button class="eye" title="Show / hide">${ic(l.hidden?I.eyeoff:I.eye)}</button><button class="rm" title="Delete layer" ${S.layers.length<2?'disabled':''}>${ic(I.trash)}</button>`;
+    const inp=li.querySelector('input');inp.value=l.name;inp.oninput=()=>{l.name=inp.value;persist()};
+    li.addEventListener('pointerdown',()=>{if(S.active!==l.id)setActive(l.id)});
+    li.querySelector('.eye').onclick=()=>{l.hidden=!l.hidden;applyLayers();renderPanel();persist()};
+    li.querySelector('.rm').onclick=()=>removeLayer(l);
+    const g=li.querySelector('.grip');
+    g.onpointerdown=()=>li.draggable=true;
+    li.ondragstart=e=>{e.dataTransfer.setData('text','x');li.classList.add('drag');dragged=li};
+    li.ondragover=e=>{e.preventDefault();if(!dragged||dragged===li)return;const r=li.getBoundingClientRect();ul.insertBefore(dragged,e.clientY>r.top+r.height/2?li.nextSibling:li)};
+    li.ondragend=()=>{li.draggable=false;dragged=null;const ids=[...ul.children].map(x=>x.dataset.id).reverse();S.layers=ids.map(id=>S.layers.find(x=>x.id===id));applyLayers();persist()};
+    ul.append(li);
+  });
+  $('#lcnt').textContent=`${S.layers.length}/5`;$('#ladd').disabled=S.layers.length>=5;
+}
+let dragged=null;
+$('#ladd').onclick=()=>{
+  if(S.layers.length>=5)return;
+  const l={id:uid(),name:'Layer '+(S.layers.length+1),hidden:false};
+  S.layers.push(l);S.active=l.id;addLayerDom(l);applyLayers();renderPanel();persist();
+};
+async function removeLayer(l){
+  if(S.layers.length<2)return;
+  const used=S.notes.some(n=>n.l===l.id)||S.strokes.some(s=>s.l===l.id);
+  if(used&&!await ask(`Delete “${l.name}” with everything on it?`,'Delete layer'))return;
+  LE[l.id].remove();delete LE[l.id];
+  S.notes=S.notes.filter(n=>n.l!==l.id);S.strokes=S.strokes.filter(s=>s.l!==l.id);
+  S.conns=S.conns.filter(c=>NN(c.a)&&NN(c.b));S.layers=S.layers.filter(x=>x!==l);
+  if(S.active===l.id)S.active=S.layers[S.layers.length-1].id;
+  applyLayers();renderPanel();empty();persist();
+}
+$('#tmap').onclick=()=>$('#tmap').classList.toggle('on',!$('#nav').classList.toggle('hide'));
+$('#tlay').onclick=()=>$('#tlay').classList.toggle('on',!$('#side').classList.toggle('hide'));
+
+/* notes */
 function paint(n,el){
   const card=el.firstChild;
   el.style.left=n.x+'px';el.style.top=n.y+'px';
@@ -114,7 +353,7 @@ function renderImgs(n,el){
     const w=document.createElement('div');w.className='im';w.style.width=im.w+'px';if(im.h)w.style.height=im.h+'px';
     w.innerHTML=`<img draggable="false" src="${im.src.replace(/"/g,'%22')}"><b title="Remove image">✕</b>`;
     w.querySelector('b').onclick=()=>{n.imgs=n.imgs.filter(x=>x!==im);renderImgs(n,el);paint(n,el);persist()};
-    new ResizeObserver(()=>{const W=w.offsetWidth,H=w.offsetHeight;if(W&&(Math.abs(W-im.w)>1||Math.abs(H-(im.h||0))>1)){im.w=W;im.h=H;persist()}}).observe(w);
+    new ResizeObserver(()=>{const a=w.offsetWidth,b=w.offsetHeight;if(a&&(Math.abs(a-im.w)>1||Math.abs(b-(im.h||0))>1)){im.w=a;im.h=b;persist()}}).observe(w);
     box.append(w);
   });
 }
@@ -124,9 +363,10 @@ function addImg(n,el,src){
   i.onerror=()=>toast('Could not load that image');
   i.src=src;
 }
+function readImg(file,n,el){const r=new FileReader();r.onload=()=>addImg(n,el,r.result);r.readAsDataURL(file)}
 function mk(n){
   const el=document.createElement('div');el.className='note';el.dataset.id=n.id;
-  el.innerHTML=`<div class="card"><div class="hd"><input class="ti" placeholder="Title"><input class="col" type="color" title="Note color"><button class="pin" title="Import images from this computer">📌</button><button class="bare" title="Show only the images (hide background and title)">◐</button><button class="del" title="Delete note">✕</button></div><div class="imgs"></div><textarea placeholder="Write, or paste text, image links and images"></textarea></div><i class="h l" title="Drag to connect"></i><i class="h r" title="Drag to connect"></i>`;
+  el.innerHTML=`<div class="card"><div class="hd"><input class="ti" placeholder="Title"><input class="col" type="color" title="Note color"><button class="pin" title="Import images from this computer">${ic(I.upload)}</button><button class="bare" title="Show only the images (hide background and title)">◐</button><button class="del" title="Delete note">✕</button></div><div class="imgs"></div><textarea placeholder="Write, or paste text, image links and images"></textarea></div><i class="h l" title="Drag to connect"></i><i class="h r" title="Drag to connect"></i>`;
   const card=el.firstChild,ti=el.querySelector('.ti'),ta=el.querySelector('textarea'),col=el.querySelector('.col');
   ti.value=n.title;ta.value=n.text;col.value=n.color;
   card.style.width=n.w+'px';card.style.height=n.h+'px';
@@ -138,95 +378,106 @@ function mk(n){
   el.querySelector('.pin').onclick=()=>{pickTarget={n,el};$('#pick').click()};
   el.querySelector('.del').onclick=()=>{S.notes=S.notes.filter(x=>x!==n);S.conns=S.conns.filter(c=>c.a!==n.id&&c.b!==n.id);el.remove();drawWires();empty();persist()};
   new ResizeObserver(()=>{const w=card.offsetWidth,h=card.offsetHeight;if(w&&(w!==n.w||h!==n.h)){n.w=w;n.h=h;drawWires();persist()}}).observe(card);
-
-  // paste images / image links
   el.addEventListener('paste',e=>{
     const files=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith('image/'));
     if(files.length){e.preventDefault();files.forEach(f=>readImg(f,n,el));return}
     const t=(e.clipboardData?.getData('text')||'').trim();
     if(/^(https?:\/\/\S+\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?\S*)?|data:image\/\S+)$/i.test(t)){e.preventDefault();addImg(n,el,t)}
   });
-
-  // move
   card.addEventListener('pointerdown',e=>{
     if(!e.target.matches('.card,.hd,img'))return;
     if(e.target===card&&(e.offsetX>card.clientWidth-20||e.offsetY>card.clientHeight-20))return;
     e.preventDefault();el.style.zIndex=++z;
     const sx=e.clientX,sy=e.clientY,ox=n.x,oy=n.y;
-    const mv=e=>{n.x=Math.max(0,ox+e.clientX-sx);n.y=Math.max(0,oy+e.clientY-sy);paint(n,el);drawWires()};
+    const mv=e=>{n.x=Math.max(0,ox+(e.clientX-sx)/S.zoom);n.y=Math.max(0,oy+(e.clientY-sy)/S.zoom);paint(n,el);drawWires()};
     const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);persist()};
     addEventListener('pointermove',mv);addEventListener('pointerup',up);
   });
-
-  // connect
   el.querySelectorAll('.h').forEach(h=>h.addEventListener('pointerdown',e=>{
     e.preventDefault();e.stopPropagation();
     const side=h.classList.contains('l')?'l':'r',a=anchor(n.id,side);
     const tmp=document.createElementNS(NS,'path');tmp.setAttribute('class','tmp');svg.append(tmp);
-    const pt=e=>{const r=world.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
-    const mv=e=>{const p=pt(e);tmp.setAttribute('d',curve(a,side,p,p.x>a.x?'l':'r'))};
+    const mv=e=>{const p=W(e);tmp.setAttribute('d',curve(a,side,p,p.x>a.x?'l':'r'))};
     const up=e=>{
       removeEventListener('pointermove',mv);removeEventListener('pointerup',up);tmp.remove();
       const hit=document.elementFromPoint(e.clientX,e.clientY),tn=hit&&hit.closest('.note');
       if(tn&&tn!==el){
-        const m=S.notes.find(x=>x.id===tn.dataset.id);
-        const bs=hit.classList.contains('h')?(hit.classList.contains('l')?'l':'r'):(pt(e).x<m.x+m.w/2?'l':'r');
+        const m=NN(tn.dataset.id);
+        const bs=hit.classList.contains('h')?(hit.classList.contains('l')?'l':'r'):(W(e).x<m.x+m.w/2?'l':'r');
         S.conns.push({id:uid(),a:n.id,as:side,b:m.id,bs});drawWires();persist();
       }
     };
     addEventListener('pointermove',mv);addEventListener('pointerup',up);
   }));
-  world.append(el);
+  LE[n.l].append(el);
 }
-function readImg(file,n,el){const r=new FileReader();r.onload=()=>addImg(n,el,r.result);r.readAsDataURL(file)}
-function renderAll(){world.querySelectorAll('.note').forEach(e=>e.remove());S.notes.forEach(mk);drawWires();empty()}
-
+function renderAll(){
+  world.querySelectorAll('.layer').forEach(e=>e.remove());LE={};SE.clear();
+  S.layers.forEach(addLayerDom);S.strokes.forEach(drawStroke);S.notes.forEach(mk);
+  applyLayers();renderPanel();empty();setZoom(S.zoom);
+}
 $('#add').onclick=()=>{
-  const j=()=>Math.round((Math.random()-.5)*60);
-  const n={id:uid(),x:Math.max(0,board.scrollLeft+board.clientWidth/2-130+j()),y:Math.max(0,board.scrollTop+board.clientHeight/2-130+j()),w:260,h:220,title:'',text:'',color:COLORS[S.notes.length%COLORS.length],bare:false,imgs:[]};
+  if(mode)setMode(mode);
+  const l=S.layers.find(x=>x.id===S.active);if(l.hidden)return toast('Show this layer first');
+  const j=()=>Math.round((Math.random()-.5)*60),k=S.zoom;
+  const n={id:uid(),l:S.active,x:Math.max(0,(board.scrollLeft+board.clientWidth/2)/k-130+j()),y:Math.max(0,(board.scrollTop+board.clientHeight/2)/k-130+j()),w:260,h:220,title:'',text:'',color:COLORS[S.notes.length%COLORS.length],bare:false,imgs:[]};
   S.notes.push(n);mk(n);empty();persist();
-  const el=world.lastChild;el.style.zIndex=++z;el.querySelector('.ti').focus();
+  const el=LE[n.l].lastChild;el.style.zIndex=++z;el.querySelector('.ti').focus();
 };
 $('#pick').onchange=e=>{if(pickTarget)[...e.target.files].forEach(f=>readImg(f,pickTarget.n,pickTarget.el));e.target.value=''};
+$('#clear').onclick=async()=>{
+  if(await ask('Empty the canvas? This deletes every note, arrow and drawing. Save first if you want a copy.','Empty canvas')){S.notes=[];S.conns=[];S.strokes=[];renderAll();persist();toast('Canvas emptied')}
+};
 
-/* ---------- save / load with remembered path ---------- */
+/* save / load */
 const rem=$('#rem');
 try{rem.checked=localStorage.getItem('cb-rem')==='1'}catch{}
-rem.onchange=()=>{try{localStorage.setItem('cb-rem',rem.checked?'1':'0')}catch{} if(!rem.checked)kv('put','handle',null).catch(()=>{})};
+rem.onchange=()=>{try{localStorage.setItem('cb-rem',rem.checked?'1':'0')}catch{}toast(rem.checked?'Save and Load will reuse the last file':'Save and Load will ask for a location')};
 const types=[{description:'Board file',accept:{'application/json':['.json']}}];
-async function getHandle(mode){
-  let h=rem.checked?await kv('get','handle').catch(()=>null):null;
+// Always keeps the last used file. Checked: reuse it silently. Unchecked: always show the picker.
+async function getHandle(mode,skipStored){
+  const last=await kv('get','handle').catch(()=>null);
+  let h=rem.checked&&!skipStored?last:null;
   if(h){try{const o={mode:'readwrite'};if(await h.queryPermission(o)!=='granted'&&await h.requestPermission(o)!=='granted')h=null}catch{h=null}}
   if(!h){
-    h=mode==='save'?await showSaveFilePicker({suggestedName:'board.json',types}):(await showOpenFilePicker({types}))[0];
-    if(rem.checked)kv('put','handle',h).catch(()=>{});
+    const o={types};if(last)o.startIn=last;
+    try{h=mode==='save'?await showSaveFilePicker({suggestedName:'board.json',...o}):(await showOpenFilePicker(o))[0]}
+    catch(e){if(e.name==='TypeError'){delete o.startIn;h=mode==='save'?await showSaveFilePicker({suggestedName:'board.json',...o}):(await showOpenFilePicker(o))[0]}else throw e}
   }
+  kv('put','handle',h).catch(()=>{});
   return h;
 }
 function download(data){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download='board.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Downloaded board.json')}
 function loadText(t){
-  try{const d=JSON.parse(t);if(!Array.isArray(d.notes))throw 0;S={notes:d.notes,conns:d.conns||[]};S.notes.forEach(n=>n.imgs=n.imgs||[]);renderAll();persist();toast('Board loaded')}
+  try{const d=JSON.parse(t);if(!Array.isArray(d.notes))throw 0;S=norm(d);renderAll();persist();toast('Board loaded')}
   catch{toast('That file is not a valid board')}
 }
-$('#save').onclick=async()=>{
+async function save(skip){
   const data=JSON.stringify(S);
   try{
-    if(!window.showSaveFilePicker)throw 0;
-    const h=await getHandle('save');
-    const w=await h.createWritable();await w.write(data);await w.close();toast('Board saved');
-  }catch(e){if(e&&e.name==='AbortError')return;download(data)}
-};
-$('#load').onclick=async()=>{
+    if(!window.showSaveFilePicker)throw{name:'Unsupported'};
+    const h=await getHandle('save',skip),w=await h.createWritable();await w.write(data);await w.close();toast('Board saved');
+  }catch(e){
+    if(e.name==='AbortError')return;
+    if(!skip&&rem.checked&&['NotFoundError','NotAllowedError','InvalidStateError'].includes(e.name))return save(true);
+    download(data);
+  }
+}
+async function load(skip){
   try{
-    if(!window.showOpenFilePicker)throw 0;
-    const h=await getHandle('load');
-    loadText(await(await h.getFile()).text());
-  }catch(e){if(e&&e.name==='AbortError')return;$('#open').click()}
-};
+    if(!window.showOpenFilePicker)throw{name:'Unsupported'};
+    const h=await getHandle('load',skip);loadText(await(await h.getFile()).text());
+  }catch(e){
+    if(e.name==='AbortError')return;
+    if(!skip&&rem.checked&&['NotFoundError','NotAllowedError'].includes(e.name))return load(true);
+    $('#open').click();
+  }
+}
+$('#save').onclick=()=>save();$('#load').onclick=()=>load();
 $('#open').onchange=async e=>{const f=e.target.files[0];if(f)loadText(await f.text());e.target.value=''};
 
-/* ---------- boot ---------- */
-kv('get','state').then(s=>{if(s&&Array.isArray(s.notes))S=s}).catch(()=>{}).finally(renderAll);
+/* boot */
+kv('get','state').then(s=>{if(s&&Array.isArray(s.notes))S=norm(s)}).catch(()=>{}).finally(renderAll);
 </script>
 </body>
 </html>
