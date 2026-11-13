@@ -15,6 +15,7 @@ button,input{font-family:inherit}
 #board{position:fixed;inset:0;overflow:auto}
 #sizer{position:relative;width:5000px;height:4000px}
 #world{position:absolute;left:0;top:0;width:5000px;height:4000px;transform-origin:0 0;background-image:radial-gradient(rgba(190,200,209,.17) 1.3px,transparent 1.3px);background-size:26px 26px}
+#world{cursor:grab}
 #wires{position:absolute;inset:0;width:5000px;height:4000px;pointer-events:none;z-index:0}
 #wires .hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
 #wires .line{fill:none;stroke:var(--aqua);stroke-width:2.5;pointer-events:none}
@@ -52,8 +53,9 @@ input[type=range]{accent-color:var(--pink);cursor:pointer}
 #nav{position:fixed;right:24px;bottom:24px;z-index:10000;width:222px;padding:10px;background:rgba(43,47,50,.92);backdrop-filter:blur(8px);border:1px solid rgba(190,200,209,.18);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:transform .25s,opacity .25s}
 #nav.hide{transform:translateX(130%);opacity:0;pointer-events:none}
 #mm{display:block;width:200px;height:160px;border-radius:8px;cursor:pointer;touch-action:none}
-#zoom{display:flex;align-items:center;gap:8px;margin-top:8px}
+#zoom{display:flex;align-items:center;gap:6px;margin-top:8px}
 #zoom input{flex:1;min-width:0}
+.btn.zb{width:24px;height:24px;padding:0;font-size:17px;border-radius:8px;flex:none}
 #zl{font-size:12px;width:34px;text-align:right;font-variant-numeric:tabular-nums}
 
 /* layers */
@@ -82,8 +84,9 @@ input[type=range]{accent-color:var(--pink);cursor:pointer}
 .dlg div{display:flex;justify-content:flex-end;gap:8px}
 
 /* notes */
-.note{position:absolute;pointer-events:auto}
-.card{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,.32);resize:both;overflow:auto;min-width:250px;min-height:110px;cursor:grab}
+.note{position:absolute;pointer-events:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.32))}
+.note.bare{filter:none}
+.card{display:flex;flex-direction:column;gap:6px;padding:24px 8px 8px;border-radius:14px;-webkit-mask-image:radial-gradient(circle at 22px 11px,transparent 4.5px,#000 5.2px);mask-image:radial-gradient(circle at 22px 11px,transparent 4.5px,#000 5.2px);resize:both;overflow:auto;min-width:250px;min-height:110px;cursor:grab}
 .hd{display:flex;align-items:center;gap:4px}
 .hd input.ti{flex:1;min-width:0;font:800 calc(16px*var(--fs,1)) var(--font);color:inherit;background:rgba(255,255,255,.22);border:0;border-radius:8px;padding:6px 8px;outline:none}
 .hd input.ti::placeholder{color:inherit;opacity:.55}
@@ -99,10 +102,13 @@ input[type=range]{accent-color:var(--pink);cursor:pointer}
 .im img{display:block;width:100%;height:100%;object-fit:contain;-webkit-user-drag:none}
 .im b{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(55,59,62,.85);color:#fff;font-size:11px;display:none;align-items:center;justify-content:center;cursor:pointer}
 .im:hover b{display:flex}.im b:hover{background:var(--pink)}
+.tack{position:absolute;top:-23px;left:10px;width:24px;height:34px;transform:rotate(-40deg);transform-origin:50% 100%;z-index:3;pointer-events:none;filter:drop-shadow(0 3px 2px rgba(0,0,0,.4))}
+.tack svg{display:block}
+.note.bare .tack{display:none}
 .h{position:absolute;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;background:var(--deep);border:2.5px solid var(--aqua);cursor:crosshair;z-index:2;transition:transform .12s}
 .h:hover{background:var(--pink);border-color:#fff;transform:scale(1.3)}
 .h.l{left:-9px}.h.r{right:-9px}
-.note.bare .card{background:transparent!important;box-shadow:none;resize:none}
+.note.bare .card{background:transparent!important;-webkit-mask-image:none;mask-image:none;padding:8px;resize:none}
 .note.bare .hd{justify-content:flex-end}
 .note.bare .hd>:not(.ti){opacity:0;transition:opacity .15s}
 .note.bare:hover .hd>:not(.ti){opacity:1}
@@ -148,7 +154,7 @@ input[type=range]{accent-color:var(--pink);cursor:pointer}
 
 <div id="nav">
   <canvas id="mm" width="200" height="160" title="Click or drag to move around"></canvas>
-  <div id="zoom"><span data-i="search" style="display:flex"></span><input type="range" id="zr" min="20" max="200" step="5" value="100" title="Zoom"><span id="zl">100%</span></div>
+  <div id="zoom"><span data-i="search" style="display:flex"></span><button class="btn zb" id="zm" title="Zoom out" aria-label="Zoom out">−</button><button class="btn zb" id="zp" title="Zoom in" aria-label="Zoom in">+</button><input type="range" id="zr" min="20" max="200" step="5" value="100" title="Zoom"><span id="zl">100%</span></div>
 </div>
 
 <div id="empty">Press + to add your first note</div>
@@ -181,6 +187,7 @@ const I={
  camera:'<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/>',
  grip:'<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>'
 };
+const PIN='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 34" width="24" height="34"><path d="M12 20v13" stroke="#aeb8c0" stroke-width="2" stroke-linecap="round"/><rect x="3" y="15" width="18" height="5" rx="2.5" fill="#b3175f"/><path d="M7.5 15 9 6h6l1.5 9z" fill="#e12885"/><path d="M12.5 6H15l1.5 9h-4z" fill="#b3175f" opacity=".55"/><rect x="5" y="1.5" width="14" height="6" rx="3" fill="#e12885"/><rect x="7" y="3" width="4" height="2.4" rx="1.2" fill="#fff" opacity=".5"/></svg>';
 document.querySelectorAll('[data-i]').forEach(e=>e.insertAdjacentHTML(e.tagName==='INPUT'?'afterend':'afterbegin',ic(I[e.dataset.i])));
 
 /* state */
@@ -224,6 +231,17 @@ function setZoom(v){
   $('#zr').value=Math.round(v*100);$('#zl').textContent=Math.round(v*100)+'%';persist();
 }
 $('#zr').oninput=e=>setZoom(e.target.value/100);
+$('#zm').onclick=()=>setZoom(Math.round((S.zoom-.1)*20)/20);$('#zp').onclick=()=>setZoom(Math.round((S.zoom+.1)*20)/20);
+$('#nav').addEventListener('wheel',e=>{e.preventDefault();setZoom(S.zoom*(e.deltaY<0?1.1:1/1.1))},{passive:false});
+// drag the empty board (or hold the middle button anywhere) to move around
+board.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='mouse'||!(e.button===1||(e.button===0&&['board','sizer','world'].includes(e.target.id))))return;
+  e.preventDefault();document.activeElement?.blur();
+  const sx=e.clientX,sy=e.clientY,sl=board.scrollLeft,st=board.scrollTop;board.style.cursor='grabbing';
+  const mv=e=>{board.scrollLeft=sl-(e.clientX-sx);board.scrollTop=st-(e.clientY-sy)};
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);board.style.cursor=''};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+});
 board.addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();setZoom(S.zoom*(e.deltaY<0?1.1:1/1.1))}},{passive:false});
 let mmq=0;const mm=()=>{if(!mmq)mmq=requestAnimationFrame(()=>{mmq=0;drawMM()})};
 function drawMM(){
@@ -375,7 +393,7 @@ function addImg(n,el,src){
 function readImg(file,n,el){const r=new FileReader();r.onload=()=>addImg(n,el,r.result);r.readAsDataURL(file)}
 function mk(n){
   const el=document.createElement('div');el.className='note';el.dataset.id=n.id;
-  el.innerHTML=`<div class="card"><div class="hd"><input class="ti" placeholder="Title"><input class="col" type="color" title="Note color"><button class="pin" title="Import images from this computer">${ic(I.upload)}</button><button class="fs" title="Bigger text (Shift+click for smaller)">A+</button><button class="bare" title="Show only the images (hide background and title)">◐</button><button class="del" title="Delete note">✕</button></div><div class="imgs"></div><textarea></textarea></div><i class="h l" title="Drag to connect"></i><i class="h r" title="Drag to connect"></i>`;
+  el.innerHTML=`<div class="card"><div class="hd"><input class="ti" placeholder="Title"><input class="col" type="color" title="Note color"><button class="pin" title="Import images from this computer">${ic(I.upload)}</button><button class="fs" title="Bigger text (Shift+click for smaller)">A+</button><button class="bare" title="Show only the images (hide background and title)">◐</button><button class="del" title="Delete note">✕</button></div><div class="imgs"></div><textarea></textarea></div><i class="tack">${PIN}</i><i class="h l" title="Drag to connect"></i><i class="h r" title="Drag to connect"></i>`;
   const card=el.firstChild,ti=el.querySelector('.ti'),ta=el.querySelector('textarea'),col=el.querySelector('.col');
   ti.value=n.title;ta.value=n.text;col.value=n.color;
   card.style.width=n.w+'px';card.style.height=n.h+'px';
@@ -456,6 +474,7 @@ async function shot(){
   const x=cv.getContext('2d');x.scale(sc,sc);x.translate(-x0,-y0);
   x.fillStyle='#373b3e';x.fillRect(x0,y0,w,h);
   if((w/26)*(h/26)<60000){x.fillStyle='rgba(190,200,209,.17)';for(let gx=Math.ceil((x0-13)/26)*26+13;gx<x1;gx+=26)for(let gy=Math.ceil((y0-13)/26)*26+13;gy<y1;gy+=26){x.beginPath();x.arc(gx,gy,1.3,0,7);x.fill()}}
+  const pinImg=await loadImg('data:image/svg+xml;utf8,'+encodeURIComponent(PIN));
   let skipped=0;const pics={};
   for(const n of notes)pics[n.id]=await Promise.all(n.imgs.map(async i=>{const p=await loadImg(i.src);if(!p)skipped++;return p}));
   // arrows
@@ -491,7 +510,9 @@ async function shot(){
         x.fillStyle=fg;x.font=`500 ${15*fsf(n)}px `+SANS;x.textBaseline='middle';
         wrapText(x,ta.value,ta.offsetWidth-16).forEach((t,i)=>x.fillText(t,ta.offsetLeft+8,ta.offsetTop+8+22.5*fsf(n)*i+11.25*fsf(n)));x.restore();
       }
+      if(!n.bare){x.translate(card.scrollLeft,card.scrollTop);x.fillStyle='#373b3e';x.beginPath();x.arc(22,11,4.5,0,7);x.fill();x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=1;x.stroke()}
       x.restore();
+      if(!n.bare&&pinImg){x.save();x.translate(n.x+22,n.y+11);x.rotate(-40*Math.PI/180);x.shadowColor='rgba(0,0,0,.4)';x.shadowBlur=3;x.shadowOffsetY=3;x.drawImage(pinImg,-12,-34,24,34);x.restore()}
     });
     x.lineCap='round';x.lineJoin='round';
     strokes.filter(s=>s.l===l.id).forEach(s=>{x.strokeStyle=s.c;x.lineWidth=s.w||3;x.stroke(new Path2D(pathD(s.pts)))});
